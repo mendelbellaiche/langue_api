@@ -2,11 +2,14 @@ import os
 from datetime import datetime, timedelta, timezone
 
 from deep_translator import GoogleTranslator
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 import models
@@ -18,6 +21,10 @@ Base.metadata.create_all(bind=engine)
 APP_VERSION = "1.0.0"
 
 app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -63,7 +70,8 @@ def get_current_user(
 
 
 @app.post("/register")
-async def register(credentials: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, credentials: LoginRequest, db: Session = Depends(get_db)):
     existing_user = db.query(models.User).filter(models.User.email == credentials.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
@@ -78,7 +86,8 @@ async def register(credentials: LoginRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/login")
-async def login(credentials: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, credentials: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == credentials.email).first()
     if not user or not pwd_context.verify(credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
