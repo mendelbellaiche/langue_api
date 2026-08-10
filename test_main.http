@@ -26,7 +26,7 @@ Content-Type: application/json
 
 {
   "email": "test@example.com",
-  "password": "SuperSecret123"
+  "password": "SuperSecret123!"
 }
 
 ###
@@ -37,7 +37,18 @@ Content-Type: application/json
 
 {
   "email": "test@example.com",
-  "password": "SuperSecret123"
+  "password": "SuperSecret123!"
+}
+
+###
+
+# Register with a weak password -> should fail with 422
+POST http://127.0.0.1:8000/register
+Content-Type: application/json
+
+{
+  "email": "weak@example.com",
+  "password": "weak"
 }
 
 ###
@@ -48,7 +59,7 @@ Content-Type: application/json
 
 {
   "email": "test@example.com",
-  "password": "SuperSecret123"
+  "password": "SuperSecret123!"
 }
 
 > {%
