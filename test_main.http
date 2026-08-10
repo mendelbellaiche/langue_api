@@ -64,6 +64,7 @@ Content-Type: application/json
 
 > {%
     client.global.set("access_token", response.body.access_token);
+    client.global.set("refresh_token", response.body.refresh_token);
 %}
 
 ###
@@ -75,6 +76,41 @@ Content-Type: application/json
 {
   "email": "test@example.com",
   "password": "WrongPassword"
+}
+
+###
+
+# Refresh the access token using the refresh token -> returns new tokens
+POST http://127.0.0.1:8000/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+> {%
+    client.global.set("access_token", response.body.access_token);
+    client.global.set("refresh_token", response.body.refresh_token);
+%}
+
+###
+
+# Logout -> revokes the refresh token
+POST http://127.0.0.1:8000/logout
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+###
+
+# Using a revoked refresh token again -> should fail with 401
+POST http://127.0.0.1:8000/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
 }
 
 ###

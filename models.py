@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -14,6 +14,20 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
 
     translations = relationship("Translation", back_populates="user")
+    refresh_tokens = relationship("RefreshToken", back_populates="user")
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, index=True, nullable=False)
+    revoked = Column(Boolean, default=False, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="refresh_tokens")
 
 
 class Translation(Base):
@@ -25,6 +39,6 @@ class Translation(Base):
     target_lang = Column(String(10), nullable=False)
     original_text = Column(Text, nullable=False)
     translated_text = Column(Text, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="translations")

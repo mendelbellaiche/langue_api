@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 import models
 from database import get_db
 from limiter import limiter
-from security import create_access_token, pwd_context
+from security import create_access_token, create_refresh_token, get_valid_refresh_token, pwd_context
 
 router = APIRouter()
 
@@ -17,6 +17,10 @@ PASSWORD_MIN_LENGTH = 8
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 
 class RegisterRequest(BaseModel):
@@ -62,5 +66,28 @@ async def login(request: Request, credentials: LoginRequest, db: Session = Depen
     if not user or not pwd_context.verify(credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token(user.email)
-    return {"access_token": token, "token_type": "bearer"}
+    access_token = create_access_token(user.email)
+    refresh_token = create_refresh_token(user, db)
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/refresh")
+@limiter.limit("10/minute")
+async def refresh(request: Request, body: RefreshRequest, db: Session = Depends(get_db)):
+    stored_token = get_valid_refresh_token(body.refresh_token, db)
+    user = db.query(models.User).filter(models.User.id == stored_token.user_id).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    stored_token.revoked = True
+    new_refresh_token = create_refresh_token(user, db)
+    access_token = create_access_token(user.email)
+    return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
+
+
+@router.post("/logout")
+async def logout(body: RefreshRequest, db: Session = Depends(get_db)):
+    stored_token = get_valid_refresh_token(body.refresh_token, db)
+    stored_token.revoked = True
+    db.commit()
+    return {"message": "Logged out"}
