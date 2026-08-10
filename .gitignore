@@ -9,4 +9,5 @@ build/
 dist/
 .pytest_cache/
 .mypy_cache/
+test.db
 .DS_Store
