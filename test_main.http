@@ -105,3 +105,10 @@ Authorization: Bearer {{access_token}}
 }
 
 ###
+
+# Get the current user's translation history
+GET http://127.0.0.1:8000/translations
+Accept: application/json
+Authorization: Bearer {{access_token}}
+
+###
