@@ -20,6 +20,12 @@ JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRES_MINUTES = 15
 REFRESH_TOKEN_EXPIRES_DAYS = 7
+MAX_ACTIVE_REFRESH_TOKENS_PER_USER = 5
+
+
+def utcnow_naive() -> datetime:
+    """UTC now without tzinfo, matching the naive DateTime columns stored in the DB."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def create_access_token(email: str) -> str:
@@ -32,9 +38,26 @@ def hash_refresh_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def _enforce_active_refresh_token_limit(user: User, db: Session) -> None:
+    active_tokens = (
+        db.query(models.RefreshToken)
+        .filter(
+            models.RefreshToken.user_id == user.id,
+            models.RefreshToken.revoked.is_(False),
+            models.RefreshToken.expires_at >= utcnow_naive(),
+        )
+        .order_by(models.RefreshToken.created_at.desc())
+        .all()
+    )
+    for stale_token in active_tokens[MAX_ACTIVE_REFRESH_TOKENS_PER_USER - 1 :]:
+        stale_token.revoked = True
+
+
 def create_refresh_token(user: User, db: Session) -> str:
+    _enforce_active_refresh_token_limit(user, db)
+
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRES_DAYS)
+    expires_at = utcnow_naive() + timedelta(days=REFRESH_TOKEN_EXPIRES_DAYS)
     db.add(
         models.RefreshToken(
             user_id=user.id,
@@ -50,7 +73,7 @@ def get_valid_refresh_token(token: str, db: Session) -> models.RefreshToken:
     token_hash = hash_refresh_token(token)
     stored = db.query(models.RefreshToken).filter(models.RefreshToken.token_hash == token_hash).first()
 
-    if stored is None or stored.revoked or stored.expires_at < datetime.utcnow():
+    if stored is None or stored.revoked or stored.expires_at < utcnow_naive():
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
     return stored
 

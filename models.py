@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from database import Base
+
+
+def _utcnow_naive() -> datetime:
+    """UTC now without tzinfo, since DateTime columns here are stored without a timezone."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(Base):
@@ -25,7 +30,7 @@ class RefreshToken(Base):
     token_hash = Column(String(64), unique=True, index=True, nullable=False)
     revoked = Column(Boolean, default=False, nullable=False)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow_naive)
 
     user = relationship("User", back_populates="refresh_tokens")
 
@@ -39,6 +44,6 @@ class Translation(Base):
     target_lang = Column(String(10), nullable=False)
     original_text = Column(Text, nullable=False)
     translated_text = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow_naive)
 
     user = relationship("User", back_populates="translations")
