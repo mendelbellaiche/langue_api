@@ -1,3 +1,4 @@
+import logging
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -10,6 +11,7 @@ from limiter import limiter
 from security import create_access_token, create_refresh_token, get_valid_refresh_token, pwd_context
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 PASSWORD_MIN_LENGTH = 8
 
@@ -48,6 +50,7 @@ class RegisterRequest(BaseModel):
 async def register(request: Request, credentials: RegisterRequest, db: Session = Depends(get_db)):
     existing_user = db.query(models.User).filter(models.User.email == credentials.email).first()
     if existing_user:
+        logger.warning("Registration attempt for existing email: %s", credentials.email)
         raise HTTPException(status_code=400, detail="User already exists")
 
     user = models.User(
@@ -56,6 +59,7 @@ async def register(request: Request, credentials: RegisterRequest, db: Session =
     )
     db.add(user)
     db.commit()
+    logger.info("User registered: %s", credentials.email)
     return {"message": f"User {credentials.email} registered"}
 
 
@@ -64,10 +68,12 @@ async def register(request: Request, credentials: RegisterRequest, db: Session =
 async def login(request: Request, credentials: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == credentials.email).first()
     if not user or not pwd_context.verify(credentials.password, user.hashed_password):
+        logger.warning("Failed login attempt for email: %s", credentials.email)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(user.email)
     refresh_token = create_refresh_token(user, db)
+    logger.info("User logged in: %s", credentials.email)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
@@ -82,6 +88,7 @@ async def refresh(request: Request, body: RefreshRequest, db: Session = Depends(
     stored_token.revoked = True
     new_refresh_token = create_refresh_token(user, db)
     access_token = create_access_token(user.email)
+    logger.info("Access token refreshed for user: %s", user.email)
     return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
 
 
@@ -90,4 +97,5 @@ async def logout(body: RefreshRequest, db: Session = Depends(get_db)):
     stored_token = get_valid_refresh_token(body.refresh_token, db)
     stored_token.revoked = True
     db.commit()
+    logger.info("User logged out: user_id=%s", stored_token.user_id)
     return {"message": "Logged out"}

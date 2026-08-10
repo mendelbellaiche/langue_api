@@ -1,10 +1,18 @@
-from fastapi import FastAPI, Request
+import logging
+
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from database import Base, engine
+from database import Base, engine, get_db
 from limiter import limiter
+from logging_config import configure_logging
 from routers import auth, translate
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 Base.metadata.create_all(bind=engine)
 
@@ -17,6 +25,7 @@ app.state.limiter = limiter
 
 def handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
     assert isinstance(exc, RateLimitExceeded)
+    logger.warning("Rate limit exceeded for %s on %s", request.client.host if request.client else "unknown", request.url.path)
     return JSONResponse({"error": f"Rate limit exceeded: {exc.detail}"}, status_code=429)
 
 
@@ -29,3 +38,13 @@ app.include_router(translate.router)
 @app.get("/version")
 async def get_version():
     return {"version": APP_VERSION}
+
+
+@app.get("/health")
+async def health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("Health check failed: database unreachable")
+        return JSONResponse({"status": "unhealthy", "database": "unreachable"}, status_code=503)
+    return {"status": "ok", "database": "reachable"}

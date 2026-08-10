@@ -1,3 +1,4 @@
+import logging
 from functools import lru_cache
 
 from deep_translator import GoogleTranslator
@@ -20,6 +21,7 @@ from database import get_db
 from security import get_current_user
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class TranslateRequest(BaseModel):
@@ -56,16 +58,22 @@ async def translate(
             NotValidLength,
             NotValidPayload,
         ):
+            logger.warning(
+                "Invalid translation request: user_id=%s source=%s target=%s",
+                current_user.id, request.source_lang, target_lang,
+            )
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid request for target language '{target_lang}', check language codes and text",
             )
         except TooManyRequests:
+            logger.error("Translation provider rate limit reached for target=%s", target_lang)
             raise HTTPException(
                 status_code=429,
                 detail="Translation provider rate limit reached, try again later",
             )
         except (RequestError, ServerException, TranslationNotFound):
+            logger.error("Translation provider unavailable for target=%s", target_lang)
             raise HTTPException(
                 status_code=502,
                 detail=f"Translation provider unavailable for target language '{target_lang}'",
@@ -83,6 +91,10 @@ async def translate(
         )
 
     db.commit()
+    logger.info(
+        "Translation completed: user_id=%s source=%s targets=%s",
+        current_user.id, request.source_lang, list(translations.keys()),
+    )
 
     return {
         "source_lang": request.source_lang,
