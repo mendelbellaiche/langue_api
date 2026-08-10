@@ -1,5 +1,5 @@
-from fastapi import FastAPI
-from slowapi import _rate_limit_exceeded_handler
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from slowapi.errors import RateLimitExceeded
 
 from database import Base, engine
@@ -13,7 +13,14 @@ APP_VERSION = "1.1.0"
 app = FastAPI()
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+def handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
+    assert isinstance(exc, RateLimitExceeded)
+    return JSONResponse({"error": f"Rate limit exceeded: {exc.detail}"}, status_code=429)
+
+
+app.add_exception_handler(RateLimitExceeded, handle_rate_limit_exceeded)
 
 app.include_router(auth.router)
 app.include_router(translate.router)
