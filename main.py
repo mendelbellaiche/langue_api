@@ -8,7 +8,7 @@ from routers import auth, translate
 
 Base.metadata.create_all(bind=engine)
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 app = FastAPI()
 
