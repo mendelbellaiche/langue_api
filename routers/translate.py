@@ -52,35 +52,38 @@ async def translate(
     translations = {}
     for target_lang in request.target_langs:
         try:
-            translated_text = GoogleTranslator(
-                source=request.source_lang, target=target_lang
-            ).translate(request.text)
+            translated_text = GoogleTranslator(source=request.source_lang, target=target_lang).translate(
+                request.text
+            )
         except (
             InvalidSourceOrTargetLanguage,
             LanguageNotSupportedException,
             NotValidLength,
             NotValidPayload,
-        ):
+        ) as exc:
             logger.warning(
                 "Invalid translation request: user_id=%s source=%s target=%s ip=%s",
-                current_user.id, request.source_lang, target_lang, ip,
+                current_user.id,
+                request.source_lang,
+                target_lang,
+                ip,
             )
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid request for target language '{target_lang}', check language codes and text",
-            )
-        except TooManyRequests:
+            ) from exc
+        except TooManyRequests as exc:
             logger.error("Translation provider rate limit reached for target=%s ip=%s", target_lang, ip)
             raise HTTPException(
                 status_code=429,
                 detail="Translation provider rate limit reached, try again later",
-            )
-        except (RequestError, ServerException, TranslationNotFound):
+            ) from exc
+        except (RequestError, ServerException, TranslationNotFound) as exc:
             logger.error("Translation provider unavailable for target=%s ip=%s", target_lang, ip)
             raise HTTPException(
                 status_code=502,
                 detail=f"Translation provider unavailable for target language '{target_lang}'",
-            )
+            ) from exc
 
         translations[target_lang] = translated_text
         db.add(
@@ -96,7 +99,10 @@ async def translate(
     db.commit()
     logger.info(
         "Translation completed: user_id=%s source=%s targets=%s ip=%s",
-        current_user.id, request.source_lang, list(translations.keys()), ip,
+        current_user.id,
+        request.source_lang,
+        list(translations.keys()),
+        ip,
     )
 
     return {
@@ -115,12 +121,7 @@ async def get_translations(
 ):
     query = db.query(models.Translation).filter(models.Translation.user_id == current_user.id)
     total = query.count()
-    history = (
-        query.order_by(models.Translation.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
+    history = query.order_by(models.Translation.created_at.desc()).offset(offset).limit(limit).all()
     return {
         "total": total,
         "limit": limit,

@@ -89,8 +89,6 @@ def test_protected_route_rejects_garbage_token(client):
 def test_protected_route_accepts_valid_token(client):
     register(client)
     tokens = login(client).json()
-    response = client.get(
-        "/translations", headers={"Authorization": f"Bearer {tokens['access_token']}"}
-    )
+    response = client.get("/translations", headers={"Authorization": f"Bearer {tokens['access_token']}"})
     assert response.status_code == 200
     assert response.json()["items"] == []

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
@@ -8,7 +8,7 @@ from database import Base
 
 def _utcnow_naive() -> datetime:
     """UTC now without tzinfo, since DateTime columns here are stored without a timezone."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class User(Base):

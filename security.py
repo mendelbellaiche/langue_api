@@ -2,7 +2,7 @@ import hashlib
 import logging
 import os
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -29,11 +29,11 @@ MAX_ACTIVE_REFRESH_TOKENS_PER_USER = 5
 
 def utcnow_naive() -> datetime:
     """UTC now without tzinfo, matching the naive DateTime columns stored in the DB."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def create_access_token(email: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRES_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=JWT_EXPIRES_MINUTES)
     payload = {"sub": email, "exp": expire}
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
@@ -95,9 +95,9 @@ def get_current_user(
         if email is None:
             logger.warning("JWT rejected: missing 'sub' claim, ip=%s", ip)
             raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
+    except JWTError as exc:
         logger.warning("JWT rejected: invalid or expired token, ip=%s", ip)
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
 
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None:

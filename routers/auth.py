@@ -51,7 +51,11 @@ class RegisterRequest(BaseModel):
 async def register(request: Request, credentials: RegisterRequest, db: Session = Depends(get_db)):
     existing_user = db.query(models.User).filter(models.User.email == credentials.email).first()
     if existing_user:
-        logger.warning("Registration attempt for existing email: %s, ip=%s", credentials.email, get_remote_address(request))
+        logger.warning(
+            "Registration attempt for existing email: %s, ip=%s",
+            credentials.email,
+            get_remote_address(request),
+        )
         raise HTTPException(status_code=400, detail="User already exists")
 
     user = models.User(
@@ -69,7 +73,9 @@ async def register(request: Request, credentials: RegisterRequest, db: Session =
 async def login(request: Request, credentials: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == credentials.email).first()
     if not user or not pwd_context.verify(credentials.password, user.hashed_password):
-        logger.warning("Failed login attempt for email: %s, ip=%s", credentials.email, get_remote_address(request))
+        logger.warning(
+            "Failed login attempt for email: %s, ip=%s", credentials.email, get_remote_address(request)
+        )
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = create_access_token(user.email)
