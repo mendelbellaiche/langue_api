@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from deep_translator import GoogleTranslator
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -16,9 +18,14 @@ class TranslateRequest(BaseModel):
     target_langs: list[str]
 
 
+@lru_cache
+def _get_supported_languages() -> dict[str, str]:
+    return GoogleTranslator().get_supported_languages(as_dict=True)
+
+
 @router.get("/languages")
 async def get_languages():
-    return GoogleTranslator().get_supported_languages(as_dict=True)
+    return _get_supported_languages()
 
 
 @router.post("/translate")
