@@ -1,0 +1,107 @@
+# Test your FastAPI endpoints
+
+GET http://127.0.0.1:8000/
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/hello/User
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/version
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/languages
+Accept: application/json
+
+###
+
+# Register a new user
+POST http://127.0.0.1:8000/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "SuperSecret123"
+}
+
+###
+
+# Register the same user again -> should fail with 400
+POST http://127.0.0.1:8000/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "SuperSecret123"
+}
+
+###
+
+# Login with correct credentials -> returns access_token
+POST http://127.0.0.1:8000/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "SuperSecret123"
+}
+
+> {%
+    client.global.set("access_token", response.body.access_token);
+%}
+
+###
+
+# Login with wrong password -> should fail with 401
+POST http://127.0.0.1:8000/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "WrongPassword"
+}
+
+###
+
+# Translate text using the token obtained from login
+POST http://127.0.0.1:8000/translate
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "text": "Hello, how are you?",
+  "source_lang": "en",
+  "target_langs": ["fr", "es", "de"]
+}
+
+###
+
+# Translate without a token -> should fail with 401/403
+POST http://127.0.0.1:8000/translate
+Content-Type: application/json
+
+{
+  "text": "Hello, how are you?",
+  "source_lang": "en",
+  "target_langs": ["fr"]
+}
+
+###
+
+# Translate with an invalid target language code -> should fail with 400
+POST http://127.0.0.1:8000/translate
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "text": "Hello, how are you?",
+  "source_lang": "en",
+  "target_langs": ["not-a-lang"]
+}
+
+###
