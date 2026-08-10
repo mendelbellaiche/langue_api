@@ -1,6 +1,16 @@
 from functools import lru_cache
 
 from deep_translator import GoogleTranslator
+from deep_translator.exceptions import (
+    InvalidSourceOrTargetLanguage,
+    LanguageNotSupportedException,
+    NotValidLength,
+    NotValidPayload,
+    RequestError,
+    ServerException,
+    TooManyRequests,
+    TranslationNotFound,
+)
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -40,10 +50,25 @@ async def translate(
             translated_text = GoogleTranslator(
                 source=request.source_lang, target=target_lang
             ).translate(request.text)
-        except Exception:
+        except (
+            InvalidSourceOrTargetLanguage,
+            LanguageNotSupportedException,
+            NotValidLength,
+            NotValidPayload,
+        ):
             raise HTTPException(
                 status_code=400,
-                detail=f"Translation failed for target language '{target_lang}', check language codes",
+                detail=f"Invalid request for target language '{target_lang}', check language codes and text",
+            )
+        except TooManyRequests:
+            raise HTTPException(
+                status_code=429,
+                detail="Translation provider rate limit reached, try again later",
+            )
+        except (RequestError, ServerException, TranslationNotFound):
+            raise HTTPException(
+                status_code=502,
+                detail=f"Translation provider unavailable for target language '{target_lang}'",
             )
 
         translations[target_lang] = translated_text
