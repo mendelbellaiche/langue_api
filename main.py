@@ -1,20 +1,10 @@
-import os
-from datetime import datetime, timedelta, timezone
-
-from deep_translator import GoogleTranslator
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
-from sqlalchemy.orm import Session
 
-import models
-from database import Base, engine, get_db
-from models import User
+from database import Base, engine
+from limiter import limiter
+from routers import auth, translate
 
 Base.metadata.create_all(bind=engine)
 
@@ -22,147 +12,13 @@ APP_VERSION = "1.0.0"
 
 app = FastAPI()
 
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
-
-JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRES_MINUTES = 60
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class TranslateRequest(BaseModel):
-    text: str
-    source_lang: str
-    target_langs: list[str]
-
-
-def create_access_token(email: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRES_MINUTES)
-    payload = {"sub": email, "exp": expire}
-    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    try:
-        payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        email = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    user = db.query(models.User).filter(models.User.email == email).first()
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
-
-
-@app.post("/register")
-@limiter.limit("5/minute")
-async def register(request: Request, credentials: LoginRequest, db: Session = Depends(get_db)):
-    existing_user = db.query(models.User).filter(models.User.email == credentials.email).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists")
-
-    user = models.User(
-        email=credentials.email,
-        hashed_password=pwd_context.hash(credentials.password),
-    )
-    db.add(user)
-    db.commit()
-    return {"message": f"User {credentials.email} registered"}
-
-
-@app.post("/login")
-@limiter.limit("5/minute")
-async def login(request: Request, credentials: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == credentials.email).first()
-    if not user or not pwd_context.verify(credentials.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    token = create_access_token(user.email)
-    return {"access_token": token, "token_type": "bearer"}
+app.include_router(auth.router)
+app.include_router(translate.router)
 
 
 @app.get("/version")
 async def get_version():
     return {"version": APP_VERSION}
-
-
-@app.get("/languages")
-async def get_languages():
-    return GoogleTranslator().get_supported_languages(as_dict=True)
-
-
-@app.post("/translate")
-async def translate(
-    request: TranslateRequest,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    translations = {}
-    for target_lang in request.target_langs:
-        try:
-            translated_text = GoogleTranslator(
-                source=request.source_lang, target=target_lang
-            ).translate(request.text)
-        except Exception:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Translation failed for target language '{target_lang}', check language codes",
-            )
-
-        translations[target_lang] = translated_text
-        db.add(
-            models.Translation(
-                user_id=current_user.id,
-                source_lang=request.source_lang,
-                target_lang=target_lang,
-                original_text=request.text,
-                translated_text=translated_text,
-            )
-        )
-
-    db.commit()
-
-    return {
-        "source_lang": request.source_lang,
-        "original_text": request.text,
-        "translations": translations,
-    }
-
-
-@app.get("/translations")
-async def get_translations(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    history = (
-        db.query(models.Translation)
-        .filter(models.Translation.user_id == current_user.id)
-        .order_by(models.Translation.created_at.desc())
-        .all()
-    )
-    return [
-        {
-            "id": t.id,
-            "source_lang": t.source_lang,
-            "target_lang": t.target_lang,
-            "original_text": t.original_text,
-            "translated_text": t.translated_text,
-            "created_at": t.created_at,
-        }
-        for t in history
-    ]
