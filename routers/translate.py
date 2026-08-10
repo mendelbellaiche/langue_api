@@ -11,7 +11,7 @@ from deep_translator.exceptions import (
     TooManyRequests,
     TranslationNotFound,
 )
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -93,23 +93,32 @@ async def translate(
 
 @router.get("/translations")
 async def get_translations(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    query = db.query(models.Translation).filter(models.Translation.user_id == current_user.id)
+    total = query.count()
     history = (
-        db.query(models.Translation)
-        .filter(models.Translation.user_id == current_user.id)
-        .order_by(models.Translation.created_at.desc())
+        query.order_by(models.Translation.created_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
-    return [
-        {
-            "id": t.id,
-            "source_lang": t.source_lang,
-            "target_lang": t.target_lang,
-            "original_text": t.original_text,
-            "translated_text": t.translated_text,
-            "created_at": t.created_at,
-        }
-        for t in history
-    ]
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": [
+            {
+                "id": t.id,
+                "source_lang": t.source_lang,
+                "target_lang": t.target_lang,
+                "original_text": t.original_text,
+                "translated_text": t.translated_text,
+                "created_at": t.created_at,
+            }
+            for t in history
+        ],
+    }
