@@ -9,6 +9,8 @@ API de traduction avec authentification JWT, construite avec FastAPI, SQLAlchemy
 - Liste des langues supportées (`/languages`).
 - Version de l'API (`/version`).
 
+> **Limitation connue** : la traduction repose sur `GoogleTranslator` de `deep-translator`, qui scrape l'interface web Google Translate (pas une API officielle). Il n'y a donc pas de SLA, le service peut être bloqué ou changer de comportement sans préavis. Pour un usage critique en production, prévoir un fallback ou passer sur un vrai provider payant (Google Cloud Translation, DeepL API, etc.).
+
 ## Prérequis
 
 - Python 3.12+
