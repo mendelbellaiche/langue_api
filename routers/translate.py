@@ -12,8 +12,9 @@ from deep_translator.exceptions import (
     TooManyRequests,
     TranslationNotFound,
 )
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 import models
@@ -42,10 +43,12 @@ async def get_languages():
 
 @router.post("/translate")
 async def translate(
+    http_request: Request,
     request: TranslateRequest,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    ip = get_remote_address(http_request)
     translations = {}
     for target_lang in request.target_langs:
         try:
@@ -59,21 +62,21 @@ async def translate(
             NotValidPayload,
         ):
             logger.warning(
-                "Invalid translation request: user_id=%s source=%s target=%s",
-                current_user.id, request.source_lang, target_lang,
+                "Invalid translation request: user_id=%s source=%s target=%s ip=%s",
+                current_user.id, request.source_lang, target_lang, ip,
             )
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid request for target language '{target_lang}', check language codes and text",
             )
         except TooManyRequests:
-            logger.error("Translation provider rate limit reached for target=%s", target_lang)
+            logger.error("Translation provider rate limit reached for target=%s ip=%s", target_lang, ip)
             raise HTTPException(
                 status_code=429,
                 detail="Translation provider rate limit reached, try again later",
             )
         except (RequestError, ServerException, TranslationNotFound):
-            logger.error("Translation provider unavailable for target=%s", target_lang)
+            logger.error("Translation provider unavailable for target=%s ip=%s", target_lang, ip)
             raise HTTPException(
                 status_code=502,
                 detail=f"Translation provider unavailable for target language '{target_lang}'",
@@ -92,8 +95,8 @@ async def translate(
 
     db.commit()
     logger.info(
-        "Translation completed: user_id=%s source=%s targets=%s",
-        current_user.id, request.source_lang, list(translations.keys()),
+        "Translation completed: user_id=%s source=%s targets=%s ip=%s",
+        current_user.id, request.source_lang, list(translations.keys()), ip,
     )
 
     return {

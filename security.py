@@ -4,10 +4,11 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 import models
@@ -72,32 +73,34 @@ def create_refresh_token(user: User, db: Session) -> str:
     return token
 
 
-def get_valid_refresh_token(token: str, db: Session) -> models.RefreshToken:
+def get_valid_refresh_token(token: str, db: Session, request: Request) -> models.RefreshToken:
     token_hash = hash_refresh_token(token)
     stored = db.query(models.RefreshToken).filter(models.RefreshToken.token_hash == token_hash).first()
 
     if stored is None or stored.revoked or stored.expires_at < utcnow_naive():
-        logger.warning("Invalid or expired refresh token presented")
+        logger.warning("Invalid or expired refresh token presented from ip=%s", get_remote_address(request))
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
     return stored
 
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
+    ip = get_remote_address(request)
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         email = payload.get("sub")
         if email is None:
-            logger.warning("JWT rejected: missing 'sub' claim")
+            logger.warning("JWT rejected: missing 'sub' claim, ip=%s", ip)
             raise HTTPException(status_code=401, detail="Invalid token")
     except JWTError:
-        logger.warning("JWT rejected: invalid or expired token")
+        logger.warning("JWT rejected: invalid or expired token, ip=%s", ip)
         raise HTTPException(status_code=401, detail="Invalid token")
 
     user = db.query(models.User).filter(models.User.email == email).first()
     if user is None:
-        logger.warning("JWT valid but user not found: %s", email)
+        logger.warning("JWT valid but user not found: %s, ip=%s", email, ip)
         raise HTTPException(status_code=401, detail="User not found")
     return user

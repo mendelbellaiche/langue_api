@@ -3,6 +3,7 @@ import logging
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -25,7 +26,7 @@ app.state.limiter = limiter
 
 def handle_rate_limit_exceeded(request: Request, exc: Exception) -> Response:
     assert isinstance(exc, RateLimitExceeded)
-    logger.warning("Rate limit exceeded for %s on %s", request.client.host if request.client else "unknown", request.url.path)
+    logger.warning("Rate limit exceeded for ip=%s on %s", get_remote_address(request), request.url.path)
     return JSONResponse({"error": f"Rate limit exceeded: {exc.detail}"}, status_code=429)
 
 
