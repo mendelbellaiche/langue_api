@@ -20,6 +20,7 @@ class User(Base):
 
     translations = relationship("Translation", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
+    favorites = relationship("Favorite", back_populates="user")
 
 
 class RefreshToken(Base):
@@ -47,3 +48,18 @@ class Translation(Base):
     created_at = Column(DateTime, default=_utcnow_naive)
 
     user = relationship("User", back_populates="translations")
+
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    source_lang = Column(String(10), nullable=False)
+    target_lang = Column(String(10), nullable=False)
+    original_text = Column(Text, nullable=False)
+    translated_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=_utcnow_naive)
+    updated_at = Column(DateTime, default=_utcnow_naive, onupdate=_utcnow_naive)
+
+    user = relationship("User", back_populates="favorites")

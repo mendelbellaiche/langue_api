@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from database import Base, engine, get_db
 from limiter import limiter
 from logging_config import configure_logging
-from routers import auth, translate
+from routers import auth, favorites, translate
 
 configure_logging()
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ app.add_exception_handler(RateLimitExceeded, handle_rate_limit_exceeded)
 
 app.include_router(auth.router)
 app.include_router(translate.router)
+app.include_router(favorites.router)
 
 
 @app.get("/version")
