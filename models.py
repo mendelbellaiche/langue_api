@@ -21,6 +21,7 @@ class User(Base):
     translations = relationship("Translation", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
     favorites = relationship("Favorite", back_populates="user")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user")
 
 
 class RefreshToken(Base):
@@ -34,6 +35,19 @@ class RefreshToken(Base):
     created_at = Column(DateTime, default=_utcnow_naive)
 
     user = relationship("User", back_populates="refresh_tokens")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, index=True, nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=_utcnow_naive)
+
+    user = relationship("User", back_populates="password_reset_tokens")
 
 
 class Translation(Base):

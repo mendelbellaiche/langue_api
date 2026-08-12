@@ -32,6 +32,8 @@ cp .env.example .env
 
 - `DATABASE_URL` : URL de connexion à la base de données (ex: `sqlite:///./app.db`)
 - `JWT_SECRET_KEY` : clé secrète utilisée pour signer les tokens JWT
+- `GMAIL_ADDRESS` : adresse Gmail utilisée pour l'envoi des emails de réinitialisation de mot de passe
+- `GMAIL_APP_PASSWORD` : [mot de passe d'application Gmail](https://myaccount.google.com/apppasswords) (nécessite la validation en 2 étapes activée sur le compte Google)
 
 ## Lancer le serveur
 

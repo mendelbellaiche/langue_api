@@ -25,6 +25,7 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRES_MINUTES = 15
 REFRESH_TOKEN_EXPIRES_DAYS = 7
 MAX_ACTIVE_REFRESH_TOKENS_PER_USER = 5
+PASSWORD_RESET_TOKEN_EXPIRES_MINUTES = 30
 
 
 def utcnow_naive() -> datetime:
@@ -80,6 +81,37 @@ def get_valid_refresh_token(token: str, db: Session, request: Request) -> models
     if stored is None or stored.revoked or stored.expires_at < utcnow_naive():
         logger.warning("Invalid or expired refresh token presented from ip=%s", get_remote_address(request))
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    return stored
+
+
+def create_password_reset_token(user: User, db: Session) -> str:
+    db.query(models.PasswordResetToken).filter(
+        models.PasswordResetToken.user_id == user.id,
+        models.PasswordResetToken.used.is_(False),
+    ).update({"used": True})
+
+    token = secrets.token_urlsafe(32)
+    expires_at = utcnow_naive() + timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRES_MINUTES)
+    db.add(
+        models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_refresh_token(token),
+            expires_at=expires_at,
+        )
+    )
+    db.commit()
+    return token
+
+
+def get_valid_password_reset_token(token: str, db: Session) -> models.PasswordResetToken:
+    token_hash = hash_refresh_token(token)
+    stored = (
+        db.query(models.PasswordResetToken).filter(models.PasswordResetToken.token_hash == token_hash).first()
+    )
+
+    if stored is None or stored.used or stored.expires_at < utcnow_naive():
+        logger.warning("Invalid or expired password reset token presented")
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     return stored
 
 

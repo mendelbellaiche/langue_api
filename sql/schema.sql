@@ -23,6 +23,19 @@ CREATE TABLE refresh_tokens (
     CONSTRAINT fk_refresh_tokens_user_id FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
+CREATE TABLE password_reset_tokens (
+    id INTEGER NOT NULL AUTO_INCREMENT,
+    user_id INTEGER NOT NULL,
+    token_hash VARCHAR(64) NOT NULL,
+    used BOOL NOT NULL DEFAULT FALSE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE INDEX ix_password_reset_tokens_token_hash (token_hash),
+    INDEX ix_password_reset_tokens_user_id (user_id),
+    CONSTRAINT fk_password_reset_tokens_user_id FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
 CREATE TABLE translations (
     id INTEGER NOT NULL AUTO_INCREMENT,
     user_id INTEGER NOT NULL,

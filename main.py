@@ -50,3 +50,9 @@ async def health(db: Session = Depends(get_db)):
         logger.exception("Health check failed: database unreachable")
         return JSONResponse({"status": "unhealthy", "database": "unreachable"}, status_code=503)
     return {"status": "ok", "database": "reachable"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)

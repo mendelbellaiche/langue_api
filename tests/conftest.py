@@ -2,12 +2,14 @@ import os
 
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key"
+os.environ["GMAIL_ADDRESS"] = "test@example.com"
+os.environ["GMAIL_APP_PASSWORD"] = "test-app-password"
 
 import pytest
 from fastapi.testclient import TestClient
 
 import main
-from database import Base, engine
+from database import Base, SessionLocal, engine
 from limiter import limiter
 
 
@@ -33,3 +35,10 @@ def _clean_state():
 @pytest.fixture
 def client():
     return TestClient(main.app)
+
+
+@pytest.fixture
+def db_session():
+    session = SessionLocal()
+    yield session
+    session.close()

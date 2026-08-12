@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Favorite translations: `POST /favorites` (create), `GET /favorites` (paginated list), `PUT /favorites/{id}` (update), `DELETE /favorites/{id}` (delete), scoped per user.
+- Password reset flow: `POST /password-reset/request` (generates a single-use, 30-minute reset token for the given email and emails it via Gmail SMTP; response is generic to avoid user enumeration) and `POST /password-reset/confirm` (validates the token, updates the password, revokes all active refresh tokens).
 
 ## [1.1.0] - 2026-08-10
 
