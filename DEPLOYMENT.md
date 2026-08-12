@@ -105,10 +105,14 @@ sudo systemctl status langue-api
 journalctl -u langue-api -f   # logs en direct
 ```
 
-## 8. Reverse proxy Nginx + HTTPS (recommandé)
+## 8. Reverse proxy Nginx ou Apache2
+
+> **HTTPS (Certbot) ne fonctionne que si le domaine est public**, c'est-à-dire que son enregistrement DNS pointe vers une IP publique joignable depuis Internet, et que le port 80/443 est ouvert sur ta box (port forwarding). Pour un accès **local uniquement** (réseau maison, IP privée type `10.0.0.9`, résolu via `/etc/hosts` ou un DNS local), Certbot échouera toujours (`NXDOMAIN`) — reste en HTTP simple (étape 8a), ou utilise un certificat auto-signé/CA interne (mkcert) si tu tiens au HTTPS en local.
+
+### 8a. Nginx
 
 ```bash
-sudo apt install -y nginx certbot python3-certbot-nginx
+sudo apt install -y nginx
 ```
 
 `/etc/nginx/sites-available/langue-api` :
@@ -131,15 +135,21 @@ server {
 ```bash
 sudo ln -s /etc/nginx/sites-available/langue-api /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d ton-domaine.fr
 ```
 
+Accès Swagger : `http://ton-domaine.fr/docs`
+
+**Si le domaine est public**, active le HTTPS avec Certbot :
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d ton-domaine.fr
+```
 Accès Swagger : `https://ton-domaine.fr/docs`
 
-### Alternative : Apache2 au lieu de Nginx
+### 8b. Alternative : Apache2 au lieu de Nginx
 
 ```bash
-sudo apt install -y apache2 certbot python3-certbot-apache
+sudo apt install -y apache2
 sudo a2enmod proxy proxy_http headers
 ```
 
@@ -161,9 +171,15 @@ sudo a2enmod proxy proxy_http headers
 sudo a2ensite langue-api.conf
 sudo a2dissite 000-default.conf
 sudo apache2ctl configtest && sudo systemctl reload apache2
-sudo certbot --apache -d ton-domaine.fr
 ```
 
+Accès Swagger : `http://ton-domaine.fr/docs`
+
+**Si le domaine est public**, active le HTTPS avec Certbot :
+```bash
+sudo apt install -y certbot python3-certbot-apache
+sudo certbot --apache -d ton-domaine.fr
+```
 Accès Swagger : `https://ton-domaine.fr/docs`
 
 ## 9. Accès sans nom de domaine (test/dev)
