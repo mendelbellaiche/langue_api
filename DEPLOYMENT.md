@@ -136,6 +136,36 @@ sudo certbot --nginx -d ton-domaine.fr
 
 Accès Swagger : `https://ton-domaine.fr/docs`
 
+### Alternative : Apache2 au lieu de Nginx
+
+```bash
+sudo apt install -y apache2 certbot python3-certbot-apache
+sudo a2enmod proxy proxy_http headers
+```
+
+`/etc/apache2/sites-available/langue-api.conf` :
+
+```apache
+<VirtualHost *:80>
+    ServerName ton-domaine.fr
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:8000/
+    ProxyPassReverse / http://127.0.0.1:8000/
+
+    RequestHeader set X-Forwarded-Proto "http"
+</VirtualHost>
+```
+
+```bash
+sudo a2ensite langue-api.conf
+sudo a2dissite 000-default.conf
+sudo apache2ctl configtest && sudo systemctl reload apache2
+sudo certbot --apache -d ton-domaine.fr
+```
+
+Accès Swagger : `https://ton-domaine.fr/docs`
+
 ## 9. Accès sans nom de domaine (test/dev)
 
 Si tu veux accéder directement via l'IP de la VM sans Nginx, changer le bind du service :
