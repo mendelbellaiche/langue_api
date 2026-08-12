@@ -54,6 +54,13 @@ docker run -p 8000:8000 -e JWT_SECRET_KEY=your-secret -e DATABASE_URL=sqlite:///
 
 Les tests des endpoints se trouvent dans `test_main.http`, exécutables directement depuis le client HTTP de votre IDE (serveur lancé au préalable).
 
+Les requêtes utilisent la variable `{{host}}`, définie par environnement (`local` → `http://127.0.0.1:8000`, `server` → l'IP du serveur distant) :
+
+- **JetBrains (PyCharm/IntelliJ)** : environnements définis dans `http-client.env.json`. Choisissez l'environnement via le sélecteur en haut à droite du fichier `test_main.http`.
+- **VS Code** (extension [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)) : environnements définis dans `.vscode/settings.json` (`rest-client.environmentVariables`). Choisissez l'environnement via la commande `Rest Client: Switch Environment` (palette de commandes `Cmd+Shift+P`).
+
+Pensez à garder les deux fichiers synchronisés si vous ajoutez/modifiez un environnement.
+
 ## Contribuer
 
 Voir [CONTRIBUTING.md](CONTRIBUTING.md).
