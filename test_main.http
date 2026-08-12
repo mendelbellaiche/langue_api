@@ -1,27 +1,29 @@
 # Test your FastAPI endpoints
+# Select an environment (top-right dropdown in IDE, or --env flag) to switch server URL.
+# See http-client.env.json for the list of hosts (local, server, prod, ...).
 
-GET http://127.0.0.1:8000/
+GET {{host}}/
 Accept: application/json
 
 ###
 
-GET http://127.0.0.1:8000/hello/User
+GET {{host}}/hello/User
 Accept: application/json
 
 ###
 
-GET http://127.0.0.1:8000/version
+GET {{host}}/version
 Accept: application/json
 
 ###
 
-GET http://127.0.0.1:8000/languages
+GET {{host}}/languages
 Accept: application/json
 
 ###
 
 # Register a new user
-POST http://127.0.0.1:8000/register
+POST {{host}}/register
 Content-Type: application/json
 
 {
@@ -32,7 +34,7 @@ Content-Type: application/json
 ###
 
 # Register the same user again -> should fail with 400
-POST http://127.0.0.1:8000/register
+POST {{host}}/register
 Content-Type: application/json
 
 {
@@ -43,7 +45,7 @@ Content-Type: application/json
 ###
 
 # Register with a weak password -> should fail with 422
-POST http://127.0.0.1:8000/register
+POST {{host}}/register
 Content-Type: application/json
 
 {
@@ -54,7 +56,7 @@ Content-Type: application/json
 ###
 
 # Login with correct credentials -> returns access_token
-POST http://127.0.0.1:8000/login
+POST {{host}}/login
 Content-Type: application/json
 
 {
@@ -70,7 +72,7 @@ Content-Type: application/json
 ###
 
 # Login with wrong password -> should fail with 401
-POST http://127.0.0.1:8000/login
+POST {{host}}/login
 Content-Type: application/json
 
 {
@@ -81,7 +83,7 @@ Content-Type: application/json
 ###
 
 # Refresh the access token using the refresh token -> returns new tokens
-POST http://127.0.0.1:8000/refresh
+POST {{host}}/refresh
 Content-Type: application/json
 
 {
@@ -96,7 +98,7 @@ Content-Type: application/json
 ###
 
 # Logout -> revokes the refresh token
-POST http://127.0.0.1:8000/logout
+POST {{host}}/logout
 Content-Type: application/json
 
 {
@@ -106,7 +108,7 @@ Content-Type: application/json
 ###
 
 # Using a revoked refresh token again -> should fail with 401
-POST http://127.0.0.1:8000/refresh
+POST {{host}}/refresh
 Content-Type: application/json
 
 {
@@ -116,7 +118,7 @@ Content-Type: application/json
 ###
 
 # Translate text using the token obtained from login
-POST http://127.0.0.1:8000/translate
+POST {{host}}/translate
 Content-Type: application/json
 Authorization: Bearer {{access_token}}
 
@@ -129,7 +131,7 @@ Authorization: Bearer {{access_token}}
 ###
 
 # Translate without a token -> should fail with 401/403
-POST http://127.0.0.1:8000/translate
+POST {{host}}/translate
 Content-Type: application/json
 
 {
@@ -141,7 +143,7 @@ Content-Type: application/json
 ###
 
 # Translate with an invalid target language code -> should fail with 400
-POST http://127.0.0.1:8000/translate
+POST {{host}}/translate
 Content-Type: application/json
 Authorization: Bearer {{access_token}}
 
@@ -154,14 +156,14 @@ Authorization: Bearer {{access_token}}
 ###
 
 # Get the current user's translation history (default pagination)
-GET http://127.0.0.1:8000/translations
+GET {{host}}/translations
 Accept: application/json
 Authorization: Bearer {{access_token}}
 
 ###
 
 # Get the current user's translation history (custom pagination)
-GET http://127.0.0.1:8000/translations?limit=5&offset=0
+GET {{host}}/translations?limit=5&offset=0
 Accept: application/json
 Authorization: Bearer {{access_token}}
 
