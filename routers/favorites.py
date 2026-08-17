@@ -73,10 +73,16 @@ async def create_favorite(
 async def get_favorites(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    source_lang: str | None = Query(default=None),
+    target_lang: str | None = Query(default=None),
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(models.Favorite).filter(models.Favorite.user_id == current_user.id)
+    if source_lang is not None:
+        query = query.filter(models.Favorite.source_lang == source_lang)
+    if target_lang is not None:
+        query = query.filter(models.Favorite.target_lang == target_lang)
     total = query.count()
     favorites = query.order_by(models.Favorite.created_at.desc()).offset(offset).limit(limit).all()
     return {

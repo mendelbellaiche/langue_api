@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, Response
@@ -6,6 +7,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.middleware.cors import CORSMiddleware
 
 from database import Base, engine, get_db
 from limiter import limiter
@@ -20,6 +22,18 @@ Base.metadata.create_all(bind=engine)
 APP_VERSION = "1.1.0"
 
 app = FastAPI()
+
+allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
+app.add_middleware(
+    CORSMiddleware,  # type: ignore[arg-type]
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+
 
 app.state.limiter = limiter
 

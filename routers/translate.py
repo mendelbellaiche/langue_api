@@ -138,3 +138,14 @@ async def get_translations(
             for t in history
         ],
     }
+
+
+@router.delete("/translations")
+async def delete_translations(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    deleted = db.query(models.Translation).filter(models.Translation.user_id == current_user.id).delete()
+    db.commit()
+    logger.info("Translation history cleared: user_id=%s count=%s", current_user.id, deleted)
+    return {"deleted": deleted}
